@@ -28,8 +28,11 @@ class ImageStoreRequest extends FormRequest
                 'required',
                 'array',
             ],
-            'images.*' => [
+            'images.*.base64' => [
                 'base64image'
+            ],
+            'images.*.url' => [
+                'url'
             ]
         ];
     }

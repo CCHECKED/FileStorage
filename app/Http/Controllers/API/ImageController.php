@@ -41,23 +41,43 @@ class ImageController extends Controller
     {
         $request->validated();
 
+//        dd($request->input('images'));
         $images = [];
 
         foreach ($request->input('images') as $image) {
-            if (preg_match('/^data:image\/(\w+);base64,/', $image)) {
-                $extension = explode('/', explode(':', substr($image, 0, strpos($image, ';')))[1])[1];
+            if(isset($image['base64'])) {
+                if (preg_match('/^data:image\/(\w+);base64,/', $image)) {
+                    $extension = explode('/', explode(':', substr($image, 0, strpos($image, ';')))[1])[1];
 
-                $data = substr($image, strpos($image, ',') + 1);
+                    $data = substr($image, strpos($image, ',') + 1);
 
-                $data = base64_decode($data);
+                    $data = base64_decode($data);
 
-                $filename = Str::uuid() . '.' . $extension;
-                Storage::put($this->path . '/' . $filename, $data);
+                    $filename = Str::uuid() . '.' . $extension;
+                    Storage::put($this->path . '/' . $filename, $data);
 
-                $images[] = [
-                    'name' => $filename,
-                    'path' => config('app.url') . Storage::url($this->path . '/' . $filename)
-                ];
+                    $images[] = [
+                        'name' => $filename,
+                        'path' => config('app.url') . Storage::url($this->path . '/' . $filename)
+                    ];
+                }
+            } elseif (isset($image['url'])) {
+                try {
+                    $extension = Str::afterLast(image_type_to_mime_type(exif_imagetype($image['url'])), '/');
+
+                    $filename = Str::uuid() . '.' . $extension;
+
+                    $data = file_get_contents($image['url']);
+
+                    Storage::put($this->path . '/' . $filename, $data);
+
+                    $images[] = [
+                        'name' => $filename,
+                        'path' => config('app.url') . Storage::url($this->path . '/' . $filename)
+                    ];
+                } catch (\Exception $exception) {
+                    //
+                }
             }
         }
 
