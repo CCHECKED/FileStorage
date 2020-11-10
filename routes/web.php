@@ -21,4 +21,11 @@ Route::get('/', function () {
 Route::get('/storage/images/{width}/{height}/{image}', \App\Http\Controllers\ImageController::class)
     ->where('width', '[0-9]+')
     ->where('height', '[0-9]+')
-    ->where('name', '\w+');
+    ->where('image', '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.\w+');
+
+Route::get('/test/{filename}', \App\Http\Controllers\TestController::class)
+    ->where('filename', '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.\w+');
+
+//Route::get('/testcors', function () {
+//    return view('test');
+//});

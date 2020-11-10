@@ -41,42 +41,62 @@ class ImageController extends Controller
     {
         $request->validated();
 
-//        dd($request->input('images'));
         $images = [];
 
-        foreach ($request->input('images') as $image) {
-            if(isset($image['base64'])) {
-                if (preg_match('/^data:image\/(\w+);base64,/', $image)) {
-                    $extension = explode('/', explode(':', substr($image, 0, strpos($image, ';')))[1])[1];
+        if ($request->file('images')) {
+            $path = $this->getPath();
+            foreach ($request->file('images') as $image) {
+                $extension = Str::afterLast($image['file']->getMimeType(), '/');
+                $filename = $path['filename'] . '.' . $extension;
 
-                    $data = substr($image, strpos($image, ',') + 1);
+                Storage::putFileAs($this->path . '/' . $path['levels'], $image['file'], $filename);
 
-                    $data = base64_decode($data);
+                $images[] = [
+                    'name' => $filename,
+                    'path' => config('app.url') . Storage::url($this->path . '/' . $path['levels'] . '/' . $filename)
+                ];
+            }
+        }
 
-                    $filename = Str::uuid() . '.' . $extension;
-                    Storage::put($this->path . '/' . $filename, $data);
+        if ($request->input('images')) {
+            foreach ($request->input('images') as $image) {
+                $path = $this->getPath();
+                if ($image['file']) {
+                    dd($image);
+                } elseif (isset($image['base64'])) {
+                    $image = $image['base64'];
+                    if (preg_match('/^data:image\/(\w+);base64,/', $image)) {
+                        $extension = explode('/', explode(':', substr($image, 0, strpos($image, ';')))[1])[1];
 
-                    $images[] = [
-                        'name' => $filename,
-                        'path' => config('app.url') . Storage::url($this->path . '/' . $filename)
-                    ];
-                }
-            } elseif (isset($image['url'])) {
-                try {
-                    $extension = Str::afterLast(image_type_to_mime_type(exif_imagetype($image['url'])), '/');
+                        $data = substr($image, strpos($image, ',') + 1);
 
-                    $filename = Str::uuid() . '.' . $extension;
+                        $data = base64_decode($data);
 
-                    $data = file_get_contents($image['url']);
+                        $filename = $path['filename'] . '.' . $extension;
+                        Storage::put($this->path . '/' . $path['levels'] . '/' . $filename, $data);
 
-                    Storage::put($this->path . '/' . $filename, $data);
+                        $images[] = [
+                            'name' => $filename,
+                            'path' => config('app.url') . Storage::url($this->path . '/' . $path['levels'] . '/' . $filename)
+                        ];
+                    }
+                } elseif (isset($image['url'])) {
+                    try {
+                        $extension = Str::afterLast(image_type_to_mime_type(exif_imagetype($image['url'])), '/');
+                        $filename = Str::uuid() . '.' . $extension;
 
-                    $images[] = [
-                        'name' => $filename,
-                        'path' => config('app.url') . Storage::url($this->path . '/' . $filename)
-                    ];
-                } catch (\Exception $exception) {
-                    //
+                        $data = file_get_contents($image['url']);
+
+                        $filename = $path['filename'] . '.' . $extension;
+                        Storage::put($this->path . '/' . $path['levels'] . '/' . $filename, $data);
+
+                        $images[] = [
+                            'name' => $filename,
+                            'path' => config('app.url') . Storage::url($this->path . '/' . $path['levels'] . '/' . $filename)
+                        ];
+                    } catch (\Exception $exception) {
+                        //
+                    }
                 }
             }
         }
@@ -104,5 +124,19 @@ class ImageController extends Controller
         return response()->json([
             'message' => 'Изображение удалено.'
         ], 200);
+    }
+
+    private function getPath()
+    {
+        $uuid = Str::uuid();
+        return [
+            'uuid' => $uuid,
+            'levels' => implode('/', [
+                Str::substr($uuid, 0, 2),
+                Str::substr($uuid, 2, 2),
+                Str::substr($uuid, 4, 2)
+            ]),
+            'filename' => Str::substr($uuid, 6)
+        ];
     }
 }

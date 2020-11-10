@@ -28,10 +28,16 @@ class ImageStoreRequest extends FormRequest
                 'required',
                 'array',
             ],
+            'images.*.file' => [
+//                'required_without_all:images.*.url,images.*.base64',
+                'image'
+            ],
             'images.*.base64' => [
+//                'required_without_all:images.*.file,images.*.url',
                 'base64image'
             ],
             'images.*.url' => [
+//                'required_without_all::images.*.file,images.*.base64',
                 'url'
             ]
         ];

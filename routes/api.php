@@ -18,4 +18,6 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::apiResource('images', \App\Http\Controllers\API\ImageController::class)->except(['show', 'update']);
+Route::apiResource('images', \App\Http\Controllers\API\ImageController::class)
+    ->except(['index', 'show', 'update'])
+    ->middleware(\App\Http\Middleware\CheckToken::class);
