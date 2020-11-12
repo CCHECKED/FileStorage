@@ -24,6 +24,10 @@ class ImageStoreRequest extends FormRequest
     public function rules()
     {
         return [
+            'hash' => [
+                'required',
+                'string',
+            ],
             'images' => [
                 'required',
                 'array',

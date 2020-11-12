@@ -5,31 +5,13 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImageStoreRequest;
 use App\Http\Resources\ImageResource;
+use App\Models\TempFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ImageController extends Controller
 {
     private $path = 'public/images';
-
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
-    {
-        $files = Storage::allFiles($this->path);
-
-        $collection = collect($files)->map(function ($item, $key) {
-            return [
-                'name' => Str::afterLast($item, '/'),
-                'path' => config('app.url') . Storage::url($item)
-            ];
-        });
-
-        return response()->json(['images' => ImageResource::collection($collection)], 200);
-    }
 
     /**
      * Store a newly created resource in storage.
@@ -48,12 +30,19 @@ class ImageController extends Controller
             foreach ($request->file('images') as $image) {
                 $extension = Str::afterLast($image['file']->getMimeType(), '/');
                 $filename = $path['filename'] . '.' . $extension;
+                $filename_path = $path['levels'] . '/' . $filename;
 
                 Storage::putFileAs($this->path . '/' . $path['levels'], $image['file'], $filename);
 
+                TempFile::create([
+                    'hash' => $request->input('hash'),
+                    'path' => $this->path . '/' . $path['levels'] . '/' . $filename
+                ]);
+
                 $images[] = [
                     'name' => $filename,
-                    'path' => config('app.url') . Storage::url($this->path . '/' . $path['levels'] . '/' . $filename)
+                    'name_path' => $filename_path,
+                    'path' => config('app.url') . Storage::url($this->path . '/' . $filename_path)
                 ];
             }
         }
@@ -61,9 +50,7 @@ class ImageController extends Controller
         if ($request->input('images')) {
             foreach ($request->input('images') as $image) {
                 $path = $this->getPath();
-                if ($image['file']) {
-                    dd($image);
-                } elseif (isset($image['base64'])) {
+                if (isset($image['base64'])) {
                     $image = $image['base64'];
                     if (preg_match('/^data:image\/(\w+);base64,/', $image)) {
                         $extension = explode('/', explode(':', substr($image, 0, strpos($image, ';')))[1])[1];
@@ -73,11 +60,18 @@ class ImageController extends Controller
                         $data = base64_decode($data);
 
                         $filename = $path['filename'] . '.' . $extension;
-                        Storage::put($this->path . '/' . $path['levels'] . '/' . $filename, $data);
+                        $filename_path = $path['levels'] . '/' . $filename;
+
+                        Storage::put($this->path . '/' . $filename_path, $data);
+                        TempFile::create([
+                            'hash' => $request->input('hash'),
+                            'path' => $this->path . '/' . $filename_path
+                        ]);
 
                         $images[] = [
                             'name' => $filename,
-                            'path' => config('app.url') . Storage::url($this->path . '/' . $path['levels'] . '/' . $filename)
+                            'name_path' => $filename_path,
+                            'path' => config('app.url') . Storage::url($this->path . '/' . $filename_path)
                         ];
                     }
                 } elseif (isset($image['url'])) {
@@ -88,11 +82,18 @@ class ImageController extends Controller
                         $data = file_get_contents($image['url']);
 
                         $filename = $path['filename'] . '.' . $extension;
-                        Storage::put($this->path . '/' . $path['levels'] . '/' . $filename, $data);
+                        $filename_path = $path['levels'] . '/' . $filename;
+
+                        Storage::put($this->path . '/' . $filename_path, $data);
+                        TempFile::create([
+                            'hash' => $request->input('hash'),
+                            'path' => $this->path . '/' . $filename_path
+                        ]);
 
                         $images[] = [
                             'name' => $filename,
-                            'path' => config('app.url') . Storage::url($this->path . '/' . $path['levels'] . '/' . $filename)
+                            'name_path' => $filename_path,
+                            'path' => config('app.url') . Storage::url($this->path . '/' . $filename_path)
                         ];
                     } catch (\Exception $exception) {
                         //
@@ -110,10 +111,12 @@ class ImageController extends Controller
      * @param string $name
      * @return \Illuminate\Http\Response
      */
-    public function destroy($name)
+    public function destroy(... $data)
     {
-        if (Storage::exists($this->path . '/' . $name)) {
-            Storage::delete($this->path . '/' . $name);
+        $path = $this->path.'/'.implode('/', $data);
+
+        if (Storage::exists($path)) {
+            Storage::delete($path);
         } else {
             return response()->json([
                 'message' => 'Изображение не найдено.'

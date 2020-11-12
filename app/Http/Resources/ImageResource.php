@@ -16,6 +16,7 @@ class ImageResource extends JsonResource
     {
         return [
             'name' => $this['name'],
+            'name_path' => $this['name_path'],
             'path' => $this['path']
         ];
     }
